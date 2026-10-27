@@ -27,6 +27,7 @@ jobs:
           TT_SNI_1: ${{ secrets.TT_SNI_1 }}
           TT_SNI_2: ${{ secrets.TT_SNI_2 }}
           TT_CERT_CN_EXPECTED: ${{ secrets.TT_CERT_CN_EXPECTED }}
+          TT_EXPECT_HTTP_CODE: ${{ secrets.TT_EXPECT_HTTP_CODE }}
         run: bash probe_gh.sh
 
       - name: Alert on failure
