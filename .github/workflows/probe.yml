@@ -21,6 +21,8 @@ jobs:
       - name: Install aioquic
         run: pip install --user aioquic
 
+      # One-shot runs have no fail streak: a single runner-side network flap
+      # would page immediately. Retry once before declaring failure.
       - name: Probe endpoint
         env:
           TT_ENDPOINT_IP: ${{ secrets.TT_ENDPOINT_IP }}
@@ -28,7 +30,7 @@ jobs:
           TT_SNI_2: ${{ secrets.TT_SNI_2 }}
           TT_CERT_CN_EXPECTED: ${{ secrets.TT_CERT_CN_EXPECTED }}
           TT_EXPECT_HTTP_CODE: ${{ secrets.TT_EXPECT_HTTP_CODE }}
-        run: bash probe_gh.sh
+        run: bash probe_gh.sh || { sleep 8; echo "retrying once"; bash probe_gh.sh; }
 
       - name: Alert on failure
         if: failure()
