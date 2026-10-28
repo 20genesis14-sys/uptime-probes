@@ -44,14 +44,17 @@ jobs:
           TT_EXPECT_HTTP_CODE: ${{ secrets.TT_NETH_EXPECT }}
         run: bash probe_gh.sh || { sleep 8; echo "retrying once"; bash probe_gh.sh; }
 
-      # The watcher box runs no TrustTunnel: liveness = SSH port reachable.
-      - name: Probe fin1 (watcher liveness)
+      # fin1: watcher liveness = SSH port + user's x-ui VLESS (xray on :443).
+      - name: Probe fin1 (watcher + x-ui)
         id: fin1
         if: always()
         env:
           FIN1_IP: ${{ secrets.FIN1_IP }}
         run: |
-          check() { timeout 6 bash -c "</dev/tcp/${FIN1_IP}/22" 2>/dev/null; }
+          check() {
+            timeout 6 bash -c "</dev/tcp/${FIN1_IP}/22" 2>/dev/null || return 1
+            timeout 6 bash -c "</dev/tcp/${FIN1_IP}/443" 2>/dev/null || return 1
+          }
           check && exit 0
           sleep 8; echo "retrying once"
           check
@@ -84,4 +87,4 @@ jobs:
         run: |
           curl -s --max-time 10 "https://api.telegram.org/bot${TG_BOT_TOKEN}/sendMessage" \
             -d chat_id="${TG_CHAT_ID}" \
-            --data-urlencode "text=🔴 GH-CANARY fin1-watcher (45.38.139.130): сервер-наблюдатель недоступен по TCP/22 из сети Azure ($(date -u +%Y-%m-%dT%H:%M:%SZ)). VPS-сентинел ослеп — проверьте fin1 через консоль хостера. Run: ${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}" || true
+            --data-urlencode "text=🔴 GH-CANARY fin1-watcher (45.38.139.130): недоступен TCP/22 или TCP/443 (x-ui VLESS) из сети Azure ($(date -u +%Y-%m-%dT%H:%M:%SZ)). Если 22 жив, а 443 нет — упал x-ui/xray, проверьте: systemctl status x-ui, journalctl -u x-ui. Run: ${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}" || true
