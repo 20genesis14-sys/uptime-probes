@@ -10,6 +10,7 @@ set -u
 
 PORT=${TT_ENDPOINT_PORT:-443}
 EXPECT_CODE=${TT_EXPECT_HTTP_CODE:-407}
+EXPECT_CONNECT_CODE=${TT_EXPECT_CONNECT_CODE:-}
 WARN_DAYS=${TT_CERT_WARN_DAYS:-14}
 : "${TT_ENDPOINT_IP:?set TT_ENDPOINT_IP}"
 : "${TT_SNI_1:?set TT_SNI_1}"
@@ -94,12 +95,25 @@ if [[ ${TT_QUIC_PROBE:-1} == 1 ]]; then
     probe_quic "${TT_SNI_2:-$TT_SNI_1}" >/dev/null && quic=OK || reasons+=("quic_handshake")
 fi
 
+# B3: unauthenticated CONNECT probe. The tunnel service must answer with its
+# auth-failure code (407 = auth required, 405 = camouflage) - not tunnel, not
+# hang, not reset. Catches auth/camouflage-layer regressions invisible to the
+# GET probe. Empty TT_EXPECT_CONNECT_CODE skips the check.
+connect=SKIP connect_code=---
+if [[ -n "$EXPECT_CONNECT_CODE" ]]; then
+    connect=FAIL
+    connect_code=$(printf 'CONNECT example.com:443 HTTP/1.1\r\nHost: example.com:443\r\nProxy-Authorization: Basic d3Jvbmc6d3Jvbmc=\r\n\r\n' |
+        timeout 12 openssl s_client -quiet -connect "${TT_ENDPOINT_IP}:${PORT}" -servername "$TT_SNI_1" 2>/dev/null |
+        head -1 | grep -oE '[0-9]{3}' | head -1)
+    [[ "$connect_code" == "$EXPECT_CONNECT_CODE" ]] && connect=OK || reasons+=("connect_${connect_code:-none}_want_${EXPECT_CONNECT_CODE}")
+fi
+
 # --- evaluate ---------------------------------------------------------------
 fail=0
 ((${#reasons[@]})) && fail=1
 overall=OK; ((fail)) && overall=FAIL
 
-echo "$now overall=$overall tcp=$tcp tls(${TT_SNI_1})=$tls1/${tls1_code} tls(${TT_SNI_2:-none})=$tls2/${tls2_code} cert_days=$cert_days quic=$quic reasons=[${reasons[*]:-}]"
+echo "$now overall=$overall tcp=$tcp tls(${TT_SNI_1})=$tls1/${tls1_code} tls(${TT_SNI_2:-none})=$tls2/${tls2_code} connect=$connect/${connect_code} cert_days=$cert_days quic=$quic reasons=[${reasons[*]:-}]"
 
 if [[ -n ${GITHUB_STEP_SUMMARY:-} ]]; then
     {
@@ -110,6 +124,7 @@ if [[ -n ${GITHUB_STEP_SUMMARY:-} ]]; then
         [[ -n "${TT_SNI_2:-}" ]] && echo "| TLS ${TT_SNI_2} | $tls2 (${tls2_code}) |"
         echo "| cert days | $cert_days |"
         echo "| QUIC | $quic |"
+        echo "| CONNECT | $connect (${connect_code}) |"
         echo "| overall | **$overall** |"
     } >> "$GITHUB_STEP_SUMMARY"
 fi
