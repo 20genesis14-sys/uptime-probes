@@ -31,6 +31,7 @@ jobs:
           TT_SNI_2: ${{ secrets.TT_SNI_2 }}
           TT_CERT_CN_EXPECTED: ${{ secrets.TT_CERT_CN_EXPECTED }}
           TT_EXPECT_HTTP_CODE: ${{ secrets.TT_EXPECT_HTTP_CODE }}
+          TT_EXPECT_CONNECT_CODE: ${{ secrets.TT_EXPECT_CONNECT_CODE }}
         run: bash probe_gh.sh || { sleep 8; echo "retrying once"; bash probe_gh.sh; }
 
       - name: Probe neth (amsterdam)
@@ -42,6 +43,7 @@ jobs:
           TT_SNI_2: ${{ secrets.TT_NETH_SNI_2 }}
           TT_CERT_CN_EXPECTED: ${{ secrets.TT_NETH_CERT_CN }}
           TT_EXPECT_HTTP_CODE: ${{ secrets.TT_NETH_EXPECT }}
+          TT_EXPECT_CONNECT_CODE: ${{ secrets.TT_NETH_EXPECT_CONNECT }}
         run: bash probe_gh.sh || { sleep 8; echo "retrying once"; bash probe_gh.sh; }
 
       - name: Probe evo (vienna)
@@ -53,6 +55,7 @@ jobs:
           TT_SNI_2: ${{ secrets.TT_EVO_SNI_2 }}
           TT_CERT_CN_EXPECTED: ${{ secrets.TT_EVO_CERT_CN }}
           TT_EXPECT_HTTP_CODE: ${{ secrets.TT_EVO_EXPECT }}
+          TT_EXPECT_CONNECT_CODE: ${{ secrets.TT_EVO_EXPECT_CONNECT }}
         run: bash probe_gh.sh || { sleep 8; echo "retrying once"; bash probe_gh.sh; }
 
       # fin1: SSH port + user's x-ui VLESS/Reality, verified by a real TLS
